@@ -31,12 +31,12 @@ Main parameters are defined in `processing/processing.go`:
 
 ```go
 const (
-    TopicR_test        = "nst_bgp_MX204_ULIS"  // Source topic
-    TopicW_test        = "test_1"               // Destination topic
-    BrokerAddressLocal = "localhost:19092"      // Kafka address
-    BatchSize          = 20000                  // Batch size
-    Partitions         = 8                      // Number of partitions
-    ProcessingWorkers  = 16                     // Number of workers
+    TopicR_test        = "<topic_name>"          // Source topic
+    TopicW_test        = "<topic_name>"          // Destination topic
+    BrokerAddressLocal = "localhost:19092"       // Kafka address
+    BatchSize          = 20000                   // Batch size
+    Partitions         = 8                       // Number of partitions
+    ProcessingWorkers  = 16                      // Number of workers
 )
 ```
 
@@ -88,6 +88,7 @@ This allows batch ingestion processing without manual intervention.
 
 - **Machine**: 8 cores, 16GB RAM
 - **Throughput**: ~32k msg/s, ~75 MB/s
+- **Msg size**: ~2.25Ko
 
 ### Tuning
 
