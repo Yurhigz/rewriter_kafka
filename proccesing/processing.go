@@ -35,30 +35,28 @@ var (
 func PartitionProcessor(ctx context.Context, partition int, processingQueue chan ProcessingJob, resultChan chan kafka.Message, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	// Reader pour cette partition
+	// Reader & writer avec la partition qui varie
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:   []string{BrokerAddressLocal},
-		Topic:     TopicR_test,
+		Topic:     TopicR,
 		Partition: partition,
-		MinBytes:  1e6,  // 1MB
-		MaxBytes:  10e6, // 10MB
+		MinBytes:  1e6,
+		MaxBytes:  10e6,
 		MaxWait:   100 * time.Millisecond,
 	})
 	defer reader.Close()
 
-	// Writer pour cette partition
 	writer := &kafka.Writer{
 		Addr:         kafka.TCP(BrokerAddressLocal),
-		Topic:        TopicW_test,
+		Topic:        TopicW,
 		Balancer:     &kafka.Hash{},
-		BatchSize:    BatchSize / Partitions, // Batch size par partition
+		BatchSize:    BatchSize / Partitions,
 		BatchTimeout: 50 * time.Millisecond,
 		Compression:  kafka.Snappy,
 		RequiredAcks: kafka.RequireOne,
 	}
 	defer writer.Close()
-
-	// Goroutine pour l'écriture
+	// writer loop
 	go func() {
 		messageBatch := make([]kafka.Message, 0, BatchSize/Partitions)
 		flushTicker := time.NewTicker(100 * time.Millisecond)
@@ -68,7 +66,6 @@ func PartitionProcessor(ctx context.Context, partition int, processingQueue chan
 			select {
 			case msg, ok := <-resultChan:
 				if !ok {
-					// Canal fermé, flush final
 					if len(messageBatch) > 0 {
 						FlushBatch(ctx, writer, messageBatch)
 					}
@@ -77,14 +74,12 @@ func PartitionProcessor(ctx context.Context, partition int, processingQueue chan
 
 				messageBatch = append(messageBatch, msg)
 
-				// Flush si batch plein
 				if len(messageBatch) >= cap(messageBatch) {
 					FlushBatch(ctx, writer, messageBatch)
 					messageBatch = messageBatch[:0]
 				}
 
 			case <-flushTicker.C:
-				// Flush périodique
 				if len(messageBatch) > 0 {
 					FlushBatch(ctx, writer, messageBatch)
 					messageBatch = messageBatch[:0]
@@ -96,14 +91,13 @@ func PartitionProcessor(ctx context.Context, partition int, processingQueue chan
 		}
 	}()
 
-	// Boucle de lecture
+	// reader loop
 	for {
 		select {
 		case <-ctx.Done():
 			close(resultChan)
 			return
 		default:
-			// Lecture bloquante simple
 			m, err := reader.ReadMessage(ctx)
 			if err != nil {
 				if errors.Is(err, context.Canceled) {
@@ -120,10 +114,8 @@ func PartitionProcessor(ctx context.Context, partition int, processingQueue chan
 				continue
 			}
 
-			// Envoyer au pool de workers
 			select {
 			case processingQueue <- ProcessingJob{Message: m, PartitionID: partition}:
-				// Job envoyé
 			case <-ctx.Done():
 				close(resultChan)
 				return
@@ -144,7 +136,6 @@ func ProcessingWorker(ctx context.Context, jobQueue chan ProcessingJob, resultCh
 
 			transformedMsg := transformMessageOptimized(job.Message)
 
-			// Envoyer le résultat au bon canal de partition
 			select {
 			case resultChannels[job.PartitionID] <- transformedMsg:
 				atomic.AddInt64(&MessagesProcessed, 1)

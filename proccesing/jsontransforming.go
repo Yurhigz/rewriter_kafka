@@ -10,7 +10,7 @@ import (
 
 func transformMessageOptimized(m kafka.Message) kafka.Message {
 	origJSON := m.Value
-	newJSON := make([]byte, 0, len(origJSON)+1024) // Buffer avec marge
+	newJSON := make([]byte, 0, len(origJSON)+1024)
 
 	// Calculer une seule fois le timestamp de base pour aujourd'hui
 	now := time.Now()
@@ -22,13 +22,11 @@ func transformMessageOptimized(m kafka.Message) kafka.Message {
 			return
 		}
 
-		// Lire le timestamp original
 		ts, err := jsonparser.GetInt(value, "timestamp")
 		if err != nil {
 			return
 		}
 
-		// Calcul optimisé du nouveau timestamp
 		origTime := time.Unix(0, ts)
 		timeInDay := int64(origTime.Hour())*3600000000000 +
 			int64(origTime.Minute())*60000000000 +

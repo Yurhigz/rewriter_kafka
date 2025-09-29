@@ -20,10 +20,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// Canal pour les jobs de processing
 	processingQueue := make(chan processing.ProcessingJob, processing.BatchSize)
 
-	// Canal pour les résultats par partition
 	resultChannels := make([]chan kafka.Message, processing.Partitions)
 	for i := range resultChannels {
 		resultChannels[i] = make(chan kafka.Message, processing.BatchSize/processing.Partitions)
@@ -31,13 +29,11 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	// Pool de workers pour le processing
 	for i := 0; i < processing.ProcessingWorkers; i++ {
 		wg.Add(1)
 		go processing.ProcessingWorker(ctx, processingQueue, resultChannels, &wg)
 	}
 
-	// Goroutines par partition (lecture + écriture)
 	var partitionWg sync.WaitGroup
 	partitionWg.Add(processing.Partitions)
 	for partition := 0; partition < processing.Partitions; partition++ {
