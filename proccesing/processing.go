@@ -35,12 +35,11 @@ var (
 func PartitionProcessor(ctx context.Context, partition int, processingQueue chan ProcessingJob, resultChan chan kafka.Message, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	// Reader & writer avec la partition qui varie
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers:   []string{BrokerAddressLocal},
 		Topic:     TopicR,
 		Partition: partition,
-		MinBytes:  1e6,
+		MinBytes:  1e6, // 1MB
 		MaxBytes:  10e6,
 		MaxWait:   100 * time.Millisecond,
 	})
@@ -50,13 +49,13 @@ func PartitionProcessor(ctx context.Context, partition int, processingQueue chan
 		Addr:         kafka.TCP(BrokerAddressLocal),
 		Topic:        TopicW,
 		Balancer:     &kafka.Hash{},
-		BatchSize:    BatchSize / Partitions,
+		BatchSize:    BatchSize / Partitions, // Batch size par partition
 		BatchTimeout: 50 * time.Millisecond,
 		Compression:  kafka.Snappy,
 		RequiredAcks: kafka.RequireOne,
 	}
 	defer writer.Close()
-	// writer loop
+
 	go func() {
 		messageBatch := make([]kafka.Message, 0, BatchSize/Partitions)
 		flushTicker := time.NewTicker(100 * time.Millisecond)
@@ -91,7 +90,6 @@ func PartitionProcessor(ctx context.Context, partition int, processingQueue chan
 		}
 	}()
 
-	// reader loop
 	for {
 		select {
 		case <-ctx.Done():
