@@ -14,7 +14,6 @@ import (
 
 func main() {
 
-	// Reporter de métriques
 	go processing.MetricsReporter()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -33,7 +32,7 @@ func main() {
 		wg.Add(1)
 		go processing.ProcessingWorker(ctx, processingQueue, resultChannels, &wg)
 	}
-
+	// ecriture & lecture
 	var partitionWg sync.WaitGroup
 	partitionWg.Add(processing.Partitions)
 	for partition := 0; partition < processing.Partitions; partition++ {
@@ -52,7 +51,7 @@ func main() {
 			currentProcessed := atomic.LoadInt64(&processing.MessagesProcessed)
 			if currentProcessed == lastProcessed && currentProcessed > 0 {
 				log.Println("Aucune activité détectée depuis 10s, arrêt du pipeline...")
-				cancel() // Déclenche l'arrêt de toutes les goroutines
+				cancel()
 				return
 			}
 			lastProcessed = currentProcessed
